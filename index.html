@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#4f46e5">
+<link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png">
+<title>Mes notes</title>
+<style>
+:root{--bg:#f4f5f9;--card:#fff;--tx:#1b1b25;--mu:#6b6b80;--ac:#4f46e5}
+@media(prefers-color-scheme:dark){:root{--bg:#12121a;--card:#1c1c28;--tx:#ececf4;--mu:#9a9ab0}}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--tx);padding:12px;max-width:600px;margin:auto}
+.card{background:var(--card);border-radius:14px;padding:14px;margin:10px 0}
+.big{background:var(--ac);color:#fff;text-align:center}.big b{font-size:44px;display:block}
+h2{margin:0 0 6px;font-size:16px;display:flex;justify-content:space-between}
+.g{display:inline-block;background:var(--bg);border-radius:8px;padding:4px 8px;margin:3px 3px 0 0;font-size:14px}
+.mu{color:var(--mu);font-size:13px}input,button{width:100%;padding:12px;margin:6px 0;border-radius:10px;border:1px solid var(--mu);font-size:16px}
+button{background:var(--ac);color:#fff;border:0}
+</style></head><body>
+<div id="app"></div>
+<script>
+const $=document.getElementById("app"),LS=localStorage;
+const esc=t=>String(t).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+function setup(msg){$.innerHTML=`<div class="card"><h2>Configuration</h2><p class="mu">${msg||"Renseigne ton dépôt privé et un jeton GitHub en lecture seule (une seule fois)."}</p>
+<input id="r" placeholder="pseudo/nom-du-depot" value="${LS.repo||""}"><input id="t" type="password" placeholder="Jeton GitHub" value="${LS.tok||""}">
+<button onclick="LS.repo=r.value.trim();LS.tok=t.value.trim();load()">Enregistrer</button></div>`}
+function show(d,off){const u=new Date(d.updated).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"});
+$.innerHTML=`<div class="card big"><span>Moyenne générale</span><b>${esc(d.average)}</b></div>
+<p class="mu">Mis à jour : ${u}${off?" (hors ligne)":""}</p>
+<div class="card"><h2>🚫 Profs absents</h2>${d.absences.length?d.absences.map(a=>`<div>${esc(a.replace(/\*\*/g,""))}</div>`).join(""):'<span class="mu">Aucun cette semaine</span>'}</div>
+${d.subjects.map(s=>`<div class="card"><h2>${esc(s.name)}<span>${esc(s.average)}</span></h2>${s.grades.map(g=>`<span class="g">${esc(g.grade)}/${esc(g.out_of)} <small class="mu">${g.date}</small></span>`).join("")}</div>`).join("")}
+<button onclick="load()">↻ Actualiser</button><button style="background:none;color:var(--mu)" onclick="setup()">Réglages</button>`}
+async function load(){
+ if(!LS.repo||!LS.tok)return setup();
+ try{const r=await fetch(`https://api.github.com/repos/${LS.repo}/contents/data.json?t=${Date.now()}`,{headers:{Authorization:"Bearer "+LS.tok,Accept:"application/vnd.github.raw+json"}});
+ if(!r.ok)throw r.status;const d=await r.json();LS.data=JSON.stringify(d);show(d)}
+ catch(e){if(LS.data)show(JSON.parse(LS.data),true);else setup("Erreur ("+e+"). Vérifie le dépôt et le jeton, et que le script a déjà tourné une fois.")}}
+if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js");
+load();
+</script></body></html>
